@@ -1,6 +1,6 @@
 use schema ANONDB.star;
 
--- Table: fact_sales
+-- Table: Fact_sales
 CREATE OR REPLACE TABLE fact_sales (
     product_id int  NOT NULL,
     time_id int  NOT NULL,
@@ -30,15 +30,14 @@ from fact_sales;
 
 -----------------------------------------------------------------------------------------------------------------------------
 
--- Table: fact_sales
-CREATE TABLE dim_employee (
+
+CREATE OR REPLACE TABLE dim_employee (
     employee_id int  NOT NULL,
     first_name varchar(128)  NOT NULL,
     last_name varchar(128)  NOT NULL,
     birth_year int  NOT NULL,
     CONSTRAINT dim_employee_pk PRIMARY KEY (employee_id)
 );
-
 
 create or replace sequence counter start = 1 increment = 1;
 
@@ -58,14 +57,12 @@ from dim_employee;
 
 -----------------------------------------------------------------------------------------------------------------------------
 
--- Table: fact_sales
-CREATE TABLE dim_product (
+CREATE OR REPLACE TABLE dim_product (
     product_id int  NOT NULL,
     product_name varchar(256)  NOT NULL,
     product_type varchar(256)  NOT NULL,
     CONSTRAINT dim_product_pk PRIMARY KEY (product_id)
 );
-
 
 create or replace sequence counter start = 1 increment = 1;
 
@@ -84,13 +81,11 @@ from dim_product;
 
 -----------------------------------------------------------------------------------------------------------------------------
 
--- Table: dim_sales_type 30
-CREATE TABLE dim_sales_type (
+CREATE OR REPLACE TABLE dim_sales_type (
     sales_type_id int  NOT NULL,
     type_name varchar(128)  NOT NULL,
     CONSTRAINT dim_sales_type_pk PRIMARY KEY (sales_type_id)
 );
-
 
 create or replace sequence counter start = 1 increment = 1;
 
@@ -108,8 +103,7 @@ from dim_sales_type;
 
 -----------------------------------------------------------------------------------------------------------------------------
 
--- Table: dim_store 100
-CREATE TABLE dim_store (
+CREATE OR REPLACE TABLE dim_store (
     store_id int  NOT NULL,
     store_address varchar(256)  NOT NULL,
     city varchar(128)  NOT NULL,
@@ -118,7 +112,6 @@ CREATE TABLE dim_store (
     country varchar(128)  NOT NULL,
     CONSTRAINT dim_store_pk PRIMARY KEY (store_id)
 );
-
 
 create or replace sequence counter start = 1 increment = 1;
 
@@ -140,7 +133,6 @@ from dim_store;
 
 -----------------------------------------------------------------------------------------------------------------------------
 
--- Table: dim_time 2000
 CREATE OR REPLACE TABLE dim_time (
     time_id int  NOT NULL,
     action_date date NOT NULL,
@@ -151,7 +143,6 @@ CREATE OR REPLACE TABLE dim_time (
     action_year int  NOT NULL,
     CONSTRAINT dim_time_pk PRIMARY KEY (time_id)
 );
-
 
 create or replace sequence counter start = 1 increment = 1;
 
@@ -173,7 +164,7 @@ from dim_time;
 
 
 -----------------------------------------------------------------------------------------------------------------------------
--- Table: dim_supplier 100
+
 CREATE OR REPLACE TABLE dim_supplier (
     supplier_id int  NOT NULL,
     supplier_address varchar(256)  NOT NULL,
@@ -203,8 +194,7 @@ from dim_supplier;
 
 -----------------------------------------------------------------------------------------------------------------------------
 
-
--- Table: fact_supply_order
+-- SECOND FACT TABLE 
 CREATE OR REPLACE TABLE fact_supply_order (
     product_id int  NOT NULL,
     time_id int  NOT NULL,
