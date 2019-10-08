@@ -41,14 +41,33 @@ left outer join dim_time T on F.time_id = T.time_id
 ```
 On a X-Small warehouse (1 node) it took 26.2 seconds to run the query above to return 12.2 million rows. 
 
-There are more quiries within the <B>DML_1Fact.sql<B> file to test with.
+There are more quiries within the <b>DML_1Fact.sql</b> file to test with.
 
 
 ### Galaxy Schema
-The tables for the galaxy schema are below
+A Galaxy schema for our purposes will be a SQL model with two fact tables joined. 
+The ER Diagram is below for this particular data set.
 ![Galaxy Schema](https://github.com/mariusndini/SQLQueryReports/blob/master/img/galaxy.png)
 
-
+```/* SELECT ALL
+ * Join two fact tables on common dimensions
+ * 
+ */
+select *
+from fact_sales F
+left outer join dim_sales_type S on F.sales_type_id = S.sales_type_id
+left outer join dim_employee E on F.employee_id = E.employee_id
+left outer join dim_product P on F.product_id = P.product_id
+left outer join dim_store ST on F.store_id = ST.store_id
+left outer join dim_time T on F.time_id = T.time_id
+left outer join fact_supply_order FO on FO.employee_id = F.employee_id 
+//left outer join (select * from fact_supply_order at (offset => -60*0) ) FO on FO.employee_id = F.employee_id -- demo time travel
+                                    and FO.time_id = F.time_id
+                                    and FO.product_id = F.product_id
+left outer join dim_supplier D on d.supplier_id = FO.supplier_id
+;
+```
+On a X-Small warehouse (1 node) it took 37.07 seconds to run the query above to return 20.8 million rows. 
 
 
 
