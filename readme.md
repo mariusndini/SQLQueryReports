@@ -10,6 +10,6 @@ within the folders you will find the specific documentation & contents of that f
 
 <b>4) SQL Dimensional Modelling</b> Fact tables with dimension tables modelled (Multi-Fact)
 
-<b>5) Tableau Report</b>
+<b>5) Tableau Report</b> Sample connected Report to Public Exchange Data
 
 
