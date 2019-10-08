@@ -23,5 +23,5 @@ group by col;
 Returns the following result set:
 ```
 COL	        COUNT(*)
-Teacher	    8
+Teacher	        8
 ```
