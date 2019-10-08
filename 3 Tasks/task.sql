@@ -22,9 +22,38 @@ alter task ADD_TO_FACT resume;
 -- List all tasks
 show tasks;
 
--- See Results of this particular Task
+-- See Results of this particular
 select count(*)
 from fact_sales;
+
+
+
+------------------------------------------------------------------------------------------------------------
+----------------------------------  STREAMS ----------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+
+
+-- Create Stream
+create or replace stream fact_sales_stream on table fact_sales;
+
+-- See what is inside the stream
+select *
+from fact_sales_stream;
+
+-- TIME TRAVEL - Example
+select count(*) from fact_sales
+union 
+select count(*) from fact_sales at(timestamp => 'Tue, 08 Oct 2019 16:20:00 -0700'::timestamp) -- Before/At a particular time
+union
+select count(*) from fact_sales before (statement => '018f6a98-016d-8511-0000-4365005b32da') -- before/at a particular query/DML statement
+union
+select count(*) from fact_sales at (offset => -60*3)
+union
+select count(*) from fact_sales at (offset => -60*4)
+union
+select count(*) from fact_sales at (offset => -60*5)
+;
+
 
 
 
