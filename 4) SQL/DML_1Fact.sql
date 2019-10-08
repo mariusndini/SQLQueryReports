@@ -1,237 +1,141 @@
-use schema ANONDB.star;
+use database anondb;
+use schema star;
+use warehouse medium_wh;
 
--- Table: fact_sales
-CREATE OR REPLACE TABLE fact_sales (
-    product_id int  NOT NULL,
-    time_id int  NOT NULL,
-    store_id int  NOT NULL,
-    employee_id int  NOT NULL,
-    sales_type_id int  NOT NULL,
-    price decimal(8,2)  NOT NULL,
-    quantity int  NOT NULL,
-    CONSTRAINT fact_sales_pk PRIMARY KEY (product_id,time_id,store_id,employee_id,sales_type_id)
-);
+-- every minute add 100k rows to fact table
+alter task ADD_TO_FACT resume;
 
-//truncate fact_sales;
-insert into fact_sales 
-select 
-  uniform(1,1000,random(10)) as product 
-  ,uniform(1,2000,random(1)) as time 
-  ,uniform(1,100,random(1)) as store 
-  ,uniform(1,500,random(1)) as emp 
-  ,uniform(1,30,random(1)) as sales 
-  ,uniform(1,10000,random(10))/100::decimal(18,2) as price 
-  ,uniform(1,100,random(10))::int as qty 
-
-  from table(generator(rowcount=>1000000))
+/* BASE LINE TABLE ROW COUNTS
+ * 
+ */
+select 'fact_sales' as TBL,  count(*) from fact_sales
+union select 'fact_supply_order' as TBL,  count(*) from fact_supply_order
+union select 'dim_sales_type' as TBL,  count(*) from dim_sales_type
+union select 'dim_employee' as TBL,  count(*) from dim_employee
+union select 'dim_product' as TBL,  count(*) from dim_product
+union select 'dim_store' as TBL,  count(*) from dim_store
+union select 'dim_sales_type' as TBL,  count(*) from dim_sales_type
+union select 'dim_time' as TBL,  count(*) from dim_time
+union select 'dim_supplier' as TBL,  count(*) from dim_supplier
 ;
 
+
+
+/* SELECT ALL
+ * Join on all the tables and select all the rows
+ */
 select count(*)
-from fact_sales;
-
------------------------------------------------------------------------------------------------------------------------------
-
--- Table: fact_sales
-CREATE TABLE dim_employee (
-    employee_id int  NOT NULL,
-    first_name varchar(128)  NOT NULL,
-    last_name varchar(128)  NOT NULL,
-    birth_year int  NOT NULL,
-    CONSTRAINT dim_employee_pk PRIMARY KEY (employee_id)
-);
-
-
-create or replace sequence counter start = 1 increment = 1;
-
-insert into dim_employee 
-select 
-  counter.nextval as id 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as fname 
-  ,INITCAP(randstr(uniform(3,10,random(101)),random(201)), '') as lname 
-  ,uniform(1950,2000,random(1)) as birthYear 
-  from table(generator(rowcount=>500))
+from fact_sales F
+left outer join dim_sales_type S on F.sales_type_id = S.sales_type_id
+left outer join dim_employee E on F.employee_id = E.employee_id
+left outer join dim_product P on F.product_id = P.product_id
+left outer join dim_store ST on F.store_id = ST.store_id
+left outer join dim_time T on F.time_id = T.time_id
 ;
 
-select *
-from dim_employee;
-
-
-
------------------------------------------------------------------------------------------------------------------------------
-
--- Table: fact_sales
-CREATE TABLE dim_product (
-    product_id int  NOT NULL,
-    product_name varchar(256)  NOT NULL,
-    product_type varchar(256)  NOT NULL,
-    CONSTRAINT dim_product_pk PRIMARY KEY (product_id)
-);
-
-
-create or replace sequence counter start = 1 increment = 1;
-
-insert into dim_product 
+/* TO Date Reports
+ * Get Quantity, Revenue by Store for quater & month
+ * Calculate the Rank for the Store for each particular month based on revenue
+ *
+ */
 select 
-  counter.nextval as id 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as fname 
-  ,INITCAP(randstr(uniform(3,10,random(101)),random(201)), '') as lname 
-  from table(generator(rowcount=>1000))
+  T.action_qtr AS QTR
+, T.action_month as MONTH
+, f.store_id as STORE
+, sum(quantity)  AS QTY
+, sum(price * quantity) as REV_M
+, rank() over (partition by MONTH order by REV_M DESC) as RNK
+
+from fact_sales F
+  left outer join dim_sales_type S on F.sales_type_id = S.sales_type_id
+  left outer join dim_employee E on F.employee_id = E.employee_id
+  left outer join dim_product P on F.product_id = P.product_id
+  left outer join dim_store ST on F.store_id = ST.store_id
+  left outer join dim_time T on F.time_id = T.time_id
+group by QTR, MONTH, STORE
+order by QTR, MONTH, RNK
 ;
 
-select *
-from dim_product;
 
+/* TO DATE REPORTS 
+ * Calculate MTD, QTD & YTD reports with Revenue 
+ * 
+ */
+select distinct
+ action_day
+,action_month
+,action_qtr
+,action_year
+,rev
+,sum (price * quantity) over (partition by action_month, action_qtr, action_year order by action_day) as MTD
+,sum (price * quantity) over (partition by action_qtr, action_year order by action_qtr) as QTD
+,sum (price * quantity) over (partition by action_year order by action_year) as YTD
 
-
------------------------------------------------------------------------------------------------------------------------------
-
--- Table: dim_sales_type 30
-CREATE TABLE dim_sales_type (
-    sales_type_id int  NOT NULL,
-    type_name varchar(128)  NOT NULL,
-    CONSTRAINT dim_sales_type_pk PRIMARY KEY (sales_type_id)
-);
-
-
-create or replace sequence counter start = 1 increment = 1;
-
-insert into dim_sales_type 
-select 
-  counter.nextval as id 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as fname 
-  from table(generator(rowcount=>30))
+from fact_sales F
+inner join dim_time T on F.time_id = T.time_id
+  left outer join(
+      select distinct
+       action_day as d
+      ,action_month as m
+      ,action_qtr as q
+      ,action_year as y
+      ,sum (price * quantity) as REV
+      from fact_sales F inner join dim_time T on F.time_id = T.time_id
+      group by 1,2,3,4
+      order by 4, 2, 1
+  )R on R.d = t.action_day and r.m = t.action_month and r.y = t.action_year
+order by 4, 2, 1
 ;
 
-select *
-from dim_sales_type;
 
+/* TO DATE REPORTS - How does it all compare to last year
+ * Calculate MTD, QTD & YTD reports with Revenue 
+ * 
+ */
+select distinct
+ action_day
+,action_month
+,action_qtr
+,action_year
+,rev
+,sum (price * quantity) over (partition by action_month, action_qtr, action_year order by action_day) as MTD
+,sum (price * quantity) over (partition by action_qtr, action_year order by action_qtr) as QTD
+,sum (price * quantity) over (partition by action_year order by action_year) as YTD
 
+,LY.y
+,LY.LYREV
+,sum (LY.LYREV) over (partition by action_month, action_qtr, action_year order by action_day) as LYMTD
+,sum (LY.LYREV) over (partition by action_qtr, action_year order by action_qtr) as LYQTD
+,sum (LY.LYREV) over (partition by action_year order by action_year) as LYYTD
 
------------------------------------------------------------------------------------------------------------------------------
+from fact_sales F
+inner join dim_time T on F.time_id = T.time_id
+  left outer join(
+      select distinct
+       action_day as d
+      ,action_month as m
+      ,action_qtr as q
+      ,action_year as y
+      ,sum (price * quantity) as REV
+      from fact_sales F inner join dim_time T on F.time_id = T.time_id
+      group by 1,2,3,4
+      order by 4, 2, 1
+  )R on R.d = t.action_day and r.m = t.action_month and r.y = t.action_year
 
--- Table: dim_store 100
-CREATE TABLE dim_store (
-    store_id int  NOT NULL,
-    store_address varchar(256)  NOT NULL,
-    city varchar(128)  NOT NULL,
-    region varchar(128)  NOT NULL,
-    state varchar(128)  NOT NULL,
-    country varchar(128)  NOT NULL,
-    CONSTRAINT dim_store_pk PRIMARY KEY (store_id)
-);
-
-
-create or replace sequence counter start = 1 increment = 1;
-
-insert into dim_store 
-select 
-  counter.nextval as id 
-  ,INITCAP(randstr(uniform(3,10,random(10)),random(10)), '') as addr 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(4)), '') as city 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as region 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as state 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as country 
-  from table(generator(rowcount=>100))
+  left outer join(
+      select distinct
+       action_day as d
+      ,action_month as m
+      ,action_qtr as q
+      ,action_year as y
+      ,sum (price * quantity) as LYREV
+      from fact_sales F inner join dim_time T on F.time_id = T.time_id
+      group by 1,2,3,4
+      order by 4, 2, 1
+  )LY on LY.d = t.action_day and LY.m = t.action_month and LY.y = t.action_year-1
+where t.action_year > 2015 //avoid last year nulls because 2014 is first year in DB
+order by 4, 2, 1
 ;
-
-select *
-from dim_store;
-
-
-
------------------------------------------------------------------------------------------------------------------------------
-
--- Table: dim_time 2000
-CREATE OR REPLACE TABLE dim_time (
-    time_id int  NOT NULL,
-    action_date date NOT NULL,
-    action_day int  NOT NULL,
-    action_week int  NOT NULL,
-    action_month int  NOT NULL,
-    action_qtr int  NOT NULL,
-    action_year int  NOT NULL,
-    CONSTRAINT dim_time_pk PRIMARY KEY (time_id)
-);
-
-
-create or replace sequence counter start = 1 increment = 1;
-
-insert into dim_time 
-select 
-  counter.nextval as id 
-  ,dateadd(day, '-' || seq4(), current_date()) as dte
-  ,date_part(day, dte::date) as d
-  ,date_part(week, dte::date) as w
-  ,date_part(month, dte::date) as m
-  ,date_part(quarter, dte::date) as q
-  ,date_part(year, dte::date) as y
-  from table(generator(rowcount=>2000))
-;
-
-select *
-from dim_time;
-
-
-
------------------------------------------------------------------------------------------------------------------------------
--- Table: dim_supplier 100
-CREATE OR REPLACE TABLE dim_supplier (
-    supplier_id int  NOT NULL,
-    supplier_address varchar(256)  NOT NULL,
-    city varchar(128)  NOT NULL,
-    region varchar(128)  NOT NULL,
-    state varchar(128)  NOT NULL,
-    country varchar(128)  NOT NULL,
-    CONSTRAINT dim_supplier_pk PRIMARY KEY (supplier_id)
-);
-
-create or replace sequence counter start = 1 increment = 1;
-
-insert into dim_supplier 
-select 
-  counter.nextval as id 
-  ,INITCAP(randstr(uniform(3,10,random(10)),random(10)), '') as addr 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(4)), '') as city 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as region 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as state 
-  ,INITCAP(randstr(uniform(3,10,random(100)),random(98)), '') as country 
-  from table(generator(rowcount=>100))
-;
-
-select *
-from dim_supplier;
-
-
------------------------------------------------------------------------------------------------------------------------------
-
-
--- Table: fact_supply_order
-CREATE OR REPLACE TABLE fact_supply_order (
-    product_id int  NOT NULL,
-    time_id int  NOT NULL,
-    supplier_id int  NOT NULL,
-    employee_id int  NOT NULL,
-    price decimal(8,2)  NOT NULL,
-    quantity decimal(8,2)  NOT NULL,
-    CONSTRAINT fact_supply_order_pk PRIMARY KEY (supplier_id)
-);
-
-//truncate fact_sales;
-insert into fact_supply_order 
-select 
-  uniform(1,1000,random(10)) as product 
-  ,uniform(1,2000,random(1)) as time 
-  ,uniform(1,100,random(1)) as supplier 
-  ,uniform(1,500,random(1)) as employee  
-  ,uniform(1,10000,random(10))/100::decimal(18,2) as price 
-  ,uniform(1,100,random(10))::int as qty 
-
-  from table(generator(rowcount=>100))
-;
-
-select *
-from fact_supply_order;
-
 
 
 
