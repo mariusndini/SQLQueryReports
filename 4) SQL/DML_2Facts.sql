@@ -38,9 +38,9 @@ select
 , sum(f.price * f.quantity) as REV_M
 , rank() over (partition by MONTH order by REV_M DESC) as RNK
 
-, sum(FO.quantity)  AS FOQTY
-, sum(FO.price * FO.quantity) as FOREV_M
-, rank() over (partition by MONTH order by FOREV_M DESC) as FORNK
+, sum(FO.quantity)  AS COGS_QTY
+, sum(FO.price * FO.quantity) as COGS
+, rank() over (partition by MONTH order by COGS DESC) as COG_RNK
 , D.supplier_address as SUPADDRESS
 
 from fact_sales F
@@ -58,54 +58,6 @@ group by QTR, MONTH, STORE, SUPADDRESS
 order by QTR, MONTH, RNK
 ;
 
-/* TO DATE REPORTS - How does it all compare to last year
- * Calculate MTD, QTD & YTD reports with Revenue 
- * 
- */
-select distinct
- action_day
-,action_month
-,action_qtr
-,action_year
-,rev
-,sum (price * quantity) over (partition by action_month, action_qtr, action_year order by action_day) as MTD
-,sum (price * quantity) over (partition by action_qtr, action_year order by action_qtr) as QTD
-,sum (price * quantity) over (partition by action_year order by action_year) as YTD
-
-,LY.y
-,LY.LYREV
-,sum (LY.LYREV) over (partition by action_month, action_qtr, action_year order by action_day) as LYMTD
-,sum (LY.LYREV) over (partition by action_qtr, action_year order by action_qtr) as LYQTD
-,sum (LY.LYREV) over (partition by action_year order by action_year) as LYYTD
-
-from fact_sales F
-inner join dim_time T on F.time_id = T.time_id
-  left outer join(
-      select distinct
-       action_day as d
-      ,action_month as m
-      ,action_qtr as q
-      ,action_year as y
-      ,sum (price * quantity) as REV
-      from fact_sales F inner join dim_time T on F.time_id = T.time_id
-      group by 1,2,3,4
-      order by 4, 2, 1
-  )R on R.d = t.action_day and r.m = t.action_month and r.y = t.action_year
-
-  left outer join(
-      select distinct
-       action_day as d
-      ,action_month as m
-      ,action_qtr as q
-      ,action_year as y
-      ,sum (price * quantity) as LYREV
-      from fact_sales F inner join dim_time T on F.time_id = T.time_id
-      group by 1,2,3,4
-      order by 4, 2, 1
-  )LY on LY.d = t.action_day and LY.m = t.action_month and LY.y = t.action_year-1
-where t.action_year > 2015 //avoid last year nulls because 2014 is first year in DB
-order by 4, 2, 1
-;
 
 
 

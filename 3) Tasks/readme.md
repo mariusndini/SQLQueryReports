@@ -1,7 +1,7 @@
 # Snowflake Tasks
 https://docs.snowflake.net/manuals/sql-reference/sql/create-task.html
 
-Snowflake can create tasks (Think CRON jobs) internally to call stored procedures or to run jobs on a schedule. Tasks and Streams are good combination with eachother. 
+Snowflake can create tasks (CRON jobs) internally to call stored procedures or to run jobs on a schedule. Tasks and Streams are good combination with eachother. 
 
 ```
 -- Create Tasks
