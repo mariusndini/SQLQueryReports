@@ -6,7 +6,7 @@ Another option is to utilize cloud tools to convert the excel file and then util
 
 Through Snowpipe you can automate ingestion into Snowflake after the files have been converted as outlined in the infrastructure below.
 
-### Cloud Convert Infrastructure
+### Cloud Convert Infrastructure w/ Snowpipe
 ![Excel to CSV Convert](https://github.com/mariusndini/SQLQueryReports/blob/master/img/xlx-csv.png)
 
 
