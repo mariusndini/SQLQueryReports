@@ -16,6 +16,8 @@ within the folders you will find the specific documentation & contents of that f
 
 <b>5) Tableau Report</b> Sample connected Report to Public Exchange Data
 
-<b>6) Stored Procredure </b> Takes Task logic through S.Prod
+<b>6) Stored Procredure </b> Takes Task logic through S.Proc
+
+<b>7) Merge Statement & S.PROC </b> S.PROC with loop and merge statement
 
 
