@@ -70,14 +70,13 @@ https://docs.snowflake.net/manuals/user-guide/views-secure.html
 The documentation for <b>secure views</b> gets more detailed.
 
 
-### Secure Views
+### Secure Views Demo
+
+Assume we have the following <b>Star Schema</b> to get revenue for particular stores and we want to share the results with the individual stores. We can create a secure view and then share that data to the store. 
 
 
+The report/query below will get Revenue by store broken out by quarter, month, year and ranked by Revenue. 
 ```
-/* Revenue Report
- * Get Quantity, Revenue by Store for quater & month
- * Calculate the Rank for the Store for each particular month based on revenue
- */
 create or replace secure view revenue as
     select 
     T.action_qtr AS QTR
@@ -96,14 +95,43 @@ create or replace secure view revenue as
     left outer join dim_product P on F.product_id = P.product_id
     left outer join dim_store ST on F.store_id = ST.store_id
     left outer join dim_time T on F.time_id = T.time_id
-    <b>where STORE = 100</b>
+    
+    where STORE = 100 -- Row Based Filter
+    
     group by MONTH, QTR, YEAR, STORE, STORENAME, ADDRESS
     order by YEAR, MONTH, STORE, RNK ;
 ```
 
+The query above will filter the dataset for <b>store = 100</b> then we can choose who has access to this particular data set.
+The steps below are three fold 1) We create the share object 2) we give access to the database to that share object and 3) We add the account to that share object.
+```
+CREATE SHARE "STORE100_REVSHARE" COMMENT='Store 100 Revenue Share';
+GRANT USAGE ON DATABASE "ANONDB" TO SHARE "STORE100_REVSHARE";
+GRANT USAGE ON SCHEMA "ANONDB"."STAR" TO SHARE "STORE100_REVSHARE";
+GRANT SELECT ON VIEW "ANONDB"."STAR"."REVENUE" TO SHARE "STORE100_REVSHARE";
 
+ALTER SHARE "STORE100_REVSHARE" ADD ACCOUNTS = SNOWFLAKE_CONSUMER_ACCOUNT;
+```
 
+Once this step is complete the <b>SNOWFLAKE_CONSUMER_ACCOUNT</b> can see the share on their side under Shares --> inbound --> Create Database. From this point forward access to this environment is handled by the <b>consumer</b>. It is up to the producer to give the consumer access to their business data and from here the consumer needs to control the underlying user security. 
 
+### Nuances with Reader Accounts
+Within a reader account Snowflake offers two variables which can be used in the <b>where clause</b>
+
+current_role - returns current role of person running query
+https://docs.snowflake.net/manuals/sql-reference/functions/current_role.html
+
+current_user - returns current user of person running query
+https://docs.snowflake.net/manuals/sql-reference/functions/current_user.html
+
+Since the Producer account is in full control of the users, roles and reader accounts Snowflake can provide the current role and/or user attempting to run the query dynamically. This cannot exist on Full - Full account data shares because the Producer does not have access to see the consumers roles and user environments and cannot assume so. 
+
+```
+create or replace secure view revenue as
+    select some_rows
+    from some_tables
+    where STORE = current_role() ;
+```
 
 
 
