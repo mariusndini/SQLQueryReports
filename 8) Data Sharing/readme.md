@@ -70,10 +70,8 @@ https://docs.snowflake.net/manuals/user-guide/views-secure.html
 The documentation for <b>secure views</b> gets more detailed.
 
 
-### Secure Views Demo
-
+### Secure Views
 Assume we have the following <b>Star Schema</b> to get revenue for particular stores and we want to share the results with the individual stores. We can create a secure view and then share that data to the store. 
-
 
 The report/query below will get Revenue by store broken out by quarter, month, year and ranked by Revenue. 
 ```
@@ -96,8 +94,10 @@ create or replace secure view revenue as
     left outer join dim_store ST on F.store_id = ST.store_id
     left outer join dim_time T on F.time_id = T.time_id
     
+    ------------------------------------------|
     where STORE = 100 -- Row Based Filter
-    
+    ------------------------------------------|
+
     group by MONTH, QTR, YEAR, STORE, STORENAME, ADDRESS
     order by YEAR, MONTH, STORE, RNK ;
 ```
@@ -132,6 +132,16 @@ create or replace secure view revenue as
     from some_tables
     where STORE = current_role() ;
 ```
+
+Within any given reader account you can assume these are internal Snowflake accounts, if you will. 
+
+Please provide the following considerations to reader account. There could be some management.
+https://docs.snowflake.net/manuals/user-guide/data-sharing-reader-config.html
+
+## Advanced Data Sharing
+Data sharing is a broad topic with a lot of nuances. Even thought it may easy/simple to share data with Snowflake there are some nuances as well. For further reading please refer to the blog post(s) below for extra information on advanced topics.
+
+https://www.snowflake.com/blog/secure-joins-how-to-join-data-between-companies-while-respecting-pii/
 
 
 
