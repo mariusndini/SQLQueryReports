@@ -15,14 +15,14 @@ CREATE OR REPLACE TABLE fact_sales (
 insert into fact_sales 
 select 
   uniform(1,1000,random(10)) as product 
-  ,uniform(1,2000,random(1)) as time 
+  ,mod(seq4(), 2000)+1 as time//,uniform(1,2000,random(1)) as time --either use random or spread sales out evently accross 2k days
   ,uniform(1,100,random(1)) as store 
   ,uniform(1,500,random(1)) as emp 
   ,uniform(1,30,random(1)) as sales 
-  ,uniform(1,10000,random(10))/100::decimal(18,2) as price 
+  ,uniform(1,1000,random(10))/100::decimal(18,2) as price 
   ,uniform(1,100,random(10))::int as qty 
 
-  from table(generator(rowcount=>1000000))
+  from table(generator(rowcount=>100000000))
 ;
 
 select count(*)
